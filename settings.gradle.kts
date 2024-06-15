@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Detectify"
 include(":app")
- 
+include(":opencv")
