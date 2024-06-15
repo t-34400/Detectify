@@ -34,7 +34,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import com.t34400.detectify.camera.CameraView
+import com.t34400.detectify.ui.camera.CameraView
 import com.t34400.detectify.ui.theme.DetectifyTheme
 import kotlinx.coroutines.launch
 
@@ -108,7 +108,7 @@ private fun MainView(
 
     if (cameraPermissionState.status.isGranted) {
         val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
-        var isFrontCamera = remember { mutableStateOf(false) }
+        val isFrontCamera = remember { mutableStateOf(false) }
         val selector = if (isFrontCamera.value) {
             CameraSelector.DEFAULT_FRONT_CAMERA
         } else {

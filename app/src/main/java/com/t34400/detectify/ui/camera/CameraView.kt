@@ -1,4 +1,4 @@
-package com.t34400.detectify.camera
+package com.t34400.detectify.ui.camera
 
 import androidx.camera.view.CameraController
 import androidx.camera.view.PreviewView
@@ -36,7 +36,7 @@ fun CameraView(
     )
 
     Box(
-        modifier = Modifier.fillMaxSize().padding(16.dp)
+        modifier = modifier.fillMaxSize().padding(16.dp)
     ) {
         Icon(
             painter = painterResource(id = R.drawable.baseline_cameraswitch_24),
