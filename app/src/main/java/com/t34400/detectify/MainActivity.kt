@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -107,15 +108,27 @@ private fun MainView(
 
     if (cameraPermissionState.status.isGranted) {
         val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
+        var isFrontCamera = remember { mutableStateOf(false) }
+        val selector = if (isFrontCamera.value) {
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        } else {
+            CameraSelector.DEFAULT_BACK_CAMERA
+        }
+
         val cameraController: CameraController = remember { LifecycleCameraController(context) }.apply {
             bindToLifecycle(lifecycleOwner)
-            cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            cameraSelector = selector
         }
 
         Box(modifier = modifier.fillMaxSize()) {
             CameraView(
                 modifier = Modifier.fillMaxSize(),
-                cameraController
+                cameraController = cameraController,
+                switchCameraButtonClicked = {
+                    scope.launch {
+                        isFrontCamera.value = !isFrontCamera.value
+                    }
+                }
             )
         }
     } else {
