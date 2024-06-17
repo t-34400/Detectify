@@ -31,12 +31,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.t34400.detectify.ui.camera.CameraView
 import com.t34400.detectify.ui.theme.DetectifyTheme
+import com.t34400.detectify.ui.viewmodels.DetectorViewModel
+import com.t34400.detectify.ui.viewmodels.QueryImageViewModel
 import kotlinx.coroutines.launch
+import org.opencv.android.OpenCVLoader
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,7 +110,7 @@ private fun MainView(
         cameraPermissionState.launchPermissionRequest()
     }
 
-    if (cameraPermissionState.status.isGranted) {
+    if (cameraPermissionState.status.isGranted && OpenCVLoader.initLocal()) {
         val lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current
         val isFrontCamera = remember { mutableStateOf(false) }
         val selector = if (isFrontCamera.value) {
@@ -114,6 +118,7 @@ private fun MainView(
         } else {
             CameraSelector.DEFAULT_BACK_CAMERA
         }
+        val queryImageViewModel: QueryImageViewModel = viewModel(factory = QueryImageViewModel.createFactory(context.resources))
 
         val cameraController: CameraController = remember { LifecycleCameraController(context) }.apply {
             bindToLifecycle(lifecycleOwner)
@@ -123,6 +128,7 @@ private fun MainView(
         Box(modifier = modifier.fillMaxSize()) {
             CameraView(
                 modifier = Modifier.fillMaxSize(),
+                queryImageViewModel = queryImageViewModel,
                 cameraController = cameraController,
                 switchCameraButtonClicked = {
                     scope.launch {

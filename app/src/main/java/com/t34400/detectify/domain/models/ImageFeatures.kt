@@ -9,3 +9,8 @@ data class ImageFeatures(
     val keyPoints: MatOfKeyPoint,
     val descriptors: Mat
 )
+
+data class QueryImageFeatures(
+    val label: String,
+    val features: ImageFeatures
+)
