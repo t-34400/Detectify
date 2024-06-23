@@ -11,10 +11,13 @@
       <entry key="testFindingGoodMatch()">
         <State />
       </entry>
+      <entry key="testFindingHomographyCandidates()">
+        <State />
+      </entry>
       <entry key="testHomographyEstimation()">
         <State />
       </entry>
-      <entry key="testResourceAccess()">
+      <entry key="traceFindingHomographyCandidates()">
         <State />
       </entry>
     </value>

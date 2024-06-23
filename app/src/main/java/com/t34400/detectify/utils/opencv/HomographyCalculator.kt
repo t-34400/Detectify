@@ -8,7 +8,7 @@ import org.opencv.core.Scalar
 import kotlin.math.abs
 
 fun calculateHomography(sourcePoints: Mat, destinationPoints: Mat): DoubleArray? {
-    val count = sourcePoints.checkVector(2)
+    val count = sourcePoints.rows()
     val srcPoints = Array(count) { Point() }
     val dstPoints = Array(count) { Point() }
 
@@ -34,6 +34,7 @@ fun calculateHomography(srcPoints: Array<Point>, dstPoints: Array<Point>, count:
             Hnorm2Mat.put(0, 0, *Hnorm2)
 
             val LtL = Mat(9, 9, CvType.CV_64F, Scalar.all(0.0))
+            val LtLArray = DoubleArray(81) { 0.0 }
 
             for (i in 0 until count) {
                 val srcX = (srcPoints[i].x - srcMean.x) * srcScale.x
@@ -46,10 +47,11 @@ fun calculateHomography(srcPoints: Array<Point>, dstPoints: Array<Point>, count:
 
                 for (j in 0 until 9) {
                     for (k in j until 9) {
-                        LtL.put(j, k, LtL.get(j, k)[0] + Lx[j] * Lx[k] + Ly[j] * Ly[k])
+                        LtLArray[j * 9 + k] += Lx[j] * Lx[k] + Ly[j] * Ly[k]
                     }
                 }
             }
+            LtL.put(0, 0, *LtLArray)
 
             val singularValues = Mat(9, 1, CvType.CV_64F)
             val eigenVectors = Mat(9, 9, CvType.CV_64F)
@@ -58,7 +60,6 @@ fun calculateHomography(srcPoints: Array<Point>, dstPoints: Array<Point>, count:
 
             val H0 = DoubleArray(9) { eigenVectors.get(8, it)[0] }
 
-            val model = DoubleArray(9)
             val Htemp = multiplyMatrix(multiplyMatrix(invHnorm, H0), Hnorm2)
 
             val norm = Htemp[8]
@@ -102,10 +103,6 @@ private fun calculateL1Scale(points: Array<Point>, mean: Point, count: Int): Poi
     scale.y = count / scale.y
 
     return scale
-}
-
-private fun scaleFor(value: Double): Double {
-    return if (value != 0.0) 1.0 / value else 1.0
 }
 
 fun multiplyMatrix(mat1: DoubleArray, mat2: DoubleArray): DoubleArray {

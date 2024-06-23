@@ -113,7 +113,8 @@ class RANSACTest {
             inlierThreshold
         )
 
-        for ((index, homography) in homographyCandidates.withIndex()) {
+        for ((index, modelResult) in homographyCandidates.withIndex()) {
+            val homography = modelResult.homography
             println("Homography Matrix $index:")
             println("[${homography[0]} ${homography[1]} ${homography[2]}]")
             println("[${homography[3]} ${homography[4]} ${homography[5]}]")

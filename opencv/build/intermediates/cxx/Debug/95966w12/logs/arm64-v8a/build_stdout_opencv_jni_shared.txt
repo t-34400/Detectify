@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\81907\AndroidStudioProjects\Detectify\opencv\.cxx\Debug\95966w12\arm64-v8a'
+ninja: no work to do.

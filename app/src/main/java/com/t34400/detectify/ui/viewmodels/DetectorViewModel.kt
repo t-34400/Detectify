@@ -27,7 +27,7 @@ data class DetectionResult(
     val query: QueryImageFeatures,
     val trainWidth: Int,
     val trainHeight: Int,
-    val homographies: List<Matrix>
+    val homographies: List<DoubleArray>
 )
 
 class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() {
@@ -66,6 +66,7 @@ class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() 
                     val bitmap = imageProxy.toBitmap()
                     val trainImageFeatures = detectAndCompute(bitmap, akaze, scaleFactor)
 
+                    /*
                     viewModelScope.launch {
                         _results.value = withContext(Dispatchers.Default) {
                             queries.map { query ->
@@ -87,6 +88,7 @@ class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() 
 
                         imageProxy.close()
                     }
+                     */
                 } catch (e: Exception) {
                     Log.e(TAG, "Error converting ImageProxy to Bitmap.", e);
                     imageProxy.close()

@@ -95,7 +95,7 @@ fun DrawScope.drawHomographyOverlay(
     queryHeight: Int,
     widthRatio: Float,
     heightRatio: Float,
-    homographyMatrix: Matrix,
+    homographyMatrix: DoubleArray,
     label: String
 ) {
     val srcPoints = floatArrayOf(
@@ -105,7 +105,7 @@ fun DrawScope.drawHomographyOverlay(
         0f, queryHeight.toFloat()
     )
     val dstPoints = FloatArray(8)
-    homographyMatrix.apply { postScale(widthRatio, heightRatio) }.mapPoints(dstPoints, srcPoints)
+    // TODO homographyMatrix.apply { postScale(widthRatio, heightRatio) }.mapPoints(dstPoints, srcPoints)
 
     val path = Path().apply {
         moveTo(dstPoints[0], dstPoints[1])

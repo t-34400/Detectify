@@ -9,38 +9,49 @@ private const val MAX_ATTEMPTS = 10_000
 private const val SQR_CHECK_SUBSET_THRESHOLD = 0.966f
 
 @Suppress("ArrayInDataClass")
-private data class ModelResult(
+data class ModelResult(
+    val indices: IntArray,
     val homography: DoubleArray,
     val inlierCount: Int,
     val mask: BooleanArray,
+)
+@Suppress("ArrayInDataClass")
+private data class Subset (
+    val srcSubset: Array<Point>,
+    val dstSubset: Array<Point>,
+    val indices: IntArray
 )
 
 fun findHomographyCandidatesRANSAC(
     srcPoints: Array<Point>,
     dstPoints: Array<Point>,
     random: Random,
-    confidence: Double,
+    ransacThreshold: Double,
     maxIters: Int,
     topN: Int,
     inlierCountThreshold: Int,
-): Array<DoubleArray> {
+): Array<ModelResult> {
     val count = srcPoints.size
 
     if (count < MODEL_POINTS) {
         return emptyArray()
     } else if (count == MODEL_POINTS) {
         return calculateHomography(srcPoints, dstPoints, count)?.let { homography ->
-            arrayOf(homography)
+            arrayOf(ModelResult(IntArray(MODEL_POINTS) { it }, homography, count, BooleanArray(count) { true }))
         } ?: emptyArray()
     }
 
     val topModels = mutableListOf<ModelResult>()
 
-    val sqrConfidence = confidence * confidence
+    val sqrThreshold = ransacThreshold * ransacThreshold
     repeat(maxIters) { iters ->
-        getSubset(srcPoints, dstPoints, random)?.let { (srcSubset, dstSubset) ->
+        getSubset(srcPoints, dstPoints, random)?.let { subset ->
+            val srcSubset = subset.srcSubset
+            val dstSubset = subset.dstSubset
+            val indices = subset.indices
+
             calculateHomography(srcSubset, dstSubset, MODEL_POINTS)?.let { homography ->
-                val modelResult = findInliers(srcPoints, dstPoints, homography, sqrConfidence)
+                val modelResult = findInliers(indices, srcPoints, dstPoints, homography, sqrThreshold)
 
                 if (modelResult.inlierCount > inlierCountThreshold
                     && (topModels.size < topN || modelResult.inlierCount > (topModels.lastOrNull()?.inlierCount ?: 0))
@@ -63,14 +74,14 @@ fun findHomographyCandidatesRANSAC(
         }
     }
 
-    return topModels.map { it.homography }.toTypedArray()
+    return topModels.toTypedArray()
 }
 
 private fun getSubset(
     srcPoints: Array<Point>,
     dstPoints: Array<Point>,
     random: Random
-) : Pair<Array<Point>, Array<Point>>? {
+) : Subset? {
     val count = srcPoints.size
     val indices = ArrayList<Int>(MODEL_POINTS)
 
@@ -92,7 +103,7 @@ private fun getSubset(
         }
 
         if (checkSubset(srcSubset) && checkSubset(dstSubset)) {
-            return Pair(srcSubset, dstSubset)
+            return Subset(srcSubset, dstSubset, indices.toIntArray())
         }
     }
 
@@ -122,6 +133,7 @@ private fun checkSubset(points: Array<Point>): Boolean {
 }
 
 private fun findInliers(
+    indices: IntArray,
     srcPoints: Array<Point>,
     dstPoints: Array<Point>,
     homography: DoubleArray,
@@ -139,7 +151,7 @@ private fun findInliers(
         if (f) inlierCount++
     }
 
-    return ModelResult(homography, inlierCount, mask)
+    return ModelResult(indices, homography, inlierCount, mask)
 }
 
 private fun computeError(

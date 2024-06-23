@@ -1,86 +1,97 @@
 package com.t34400.detectify.utils.opencv
 
-import android.graphics.Matrix
-import android.util.Log
 import com.t34400.detectify.domain.models.ImageFeatures
-import org.opencv.calib3d.Calib3d
-import org.opencv.core.Core
-import org.opencv.core.CvType
 import org.opencv.core.DMatch
 import org.opencv.core.Mat
 import org.opencv.core.MatOfDMatch
-import org.opencv.core.MatOfPoint2f
 import org.opencv.core.Point
 import org.opencv.features2d.DescriptorMatcher
+import kotlin.math.abs
+import kotlin.random.Random
 
 private const val TAG = "HomographyFinder"
 
-fun findAllMatchesInImage(
-    query: ImageFeatures,
-    train: ImageFeatures,
-    k: Int = 30,
-    distanceThreshold: Float = 80.0f,
-    minMatchCount: Int = 12,
-    ransacReprojThreshold: Double = 10.0,
-    shearThreshold: Float = 1.0f,
-    projectionThreshold: Float = 0.5f,
-): List<Matrix> {
-    val queryKeyPoints = query.keyPoints.toArray()
-    val trainKeyPoints = train.keyPoints.toArray()
-    val queryDescriptors = query.descriptors.clone()
-    val trainDescriptors = train.descriptors
+fun findHomographyCandidates(
+    srcImageFeatures: ImageFeatures,
+    dstImageFeatures: ImageFeatures,
+    bestMatchCount: Int,
+    distanceThreshold: Float = 120.0f,
+    maxIter: Int,
+    ransacThreshold: Double,
+    inlierCountThreshold: Int,
+    ratioThreshold: Double,
+): Array<List<Point>> {
+    val srcCount = srcImageFeatures.keyPoints.rows()
+    val dstCount = dstImageFeatures.keyPoints.rows()
 
-    var matchesList = findGoodMatches(queryDescriptors, trainDescriptors, k, distanceThreshold)
-    Log.d(TAG, "${matchesList.count()} matches found.")
+    val srcPoints = Array(srcCount) { Point(srcImageFeatures.keyPoints.get(it, 0)) }
+    val dstPoints = Array(dstCount) { Point(dstImageFeatures.keyPoints.get(it, 0)) }
 
-    val goodHomographies = mutableListOf<Matrix>()
+    val goodMatches = findGoodMatches(srcImageFeatures.descriptors, dstImageFeatures.descriptors, bestMatchCount, distanceThreshold)
 
-    while (matchesList.size > minMatchCount) {
-        val (queryMatchPoints, trainMatchPoints) =
-            matchesList
-                .map { match ->
-                    Pair(queryKeyPoints[match.queryIdx].pt, trainKeyPoints[match.trainIdx].pt)
-                }
-                .unzip()
-
-        val queryPtsMat = MatOfPoint2f().apply { fromList(queryMatchPoints) }
-        val trainPtsMat = MatOfPoint2f().apply { fromList(trainMatchPoints) }
-
-        /*
-        val mask = Mat()
-        val homography = Calib3d.findHomography(queryPtsMat, trainPtsMat, Calib3d.RANSAC, ransacReprojThreshold, mask)
-
-        if (homography.empty()) {
-            Log.d(TAG, "No Homography")
-            break
-        } else {
-            matchesList = applyInvertMask(matchesList, mask)
-            Log.d(TAG, "Homography matrix:\n" +
-                    "${homography[0, 0][0]} ${homography[0, 1][0]} ${homography[0, 2][0]}\n" +
-                    "${homography[1, 0][0]} ${homography[1, 1][0]} ${homography[1, 2][0]}\n" +
-                    "${homography[2, 0][0]} ${homography[2, 1][0]} ${homography[2, 2][0]}")
-
-            if (!isShearSmall(homography, shearThreshold)) {
-                Log.d(TAG, "Homography matrix shear is too large.")
-                continue
-            } else if (!isProjectionSmall(homography, projectionThreshold)) {
-                Log.d(TAG, "Homography matrix projection is too large.")
-                continue
-            } else {
-                val inlierCount = Core.countNonZero(mask)
-                if (inlierCount < minMatchCount) {
-                    Log.d(TAG, "Too few inliers found: $inlierCount")
-                    break
-                } else {
-                    goodHomographies.add(convertMatToMatrix(homography))
-                    Log.d(TAG, "Homography found successfully.")
-                }
+    val (srcMatchPointList, dstMatchPointList) =
+        goodMatches
+            .map { match ->
+                Pair(srcPoints[match.queryIdx], dstPoints[match.trainIdx])
             }
+            .unzip()
+    val random = Random(-1)
+    val modelResults = findHomographyCandidatesRANSAC(srcMatchPointList.toTypedArray(), dstMatchPointList.toTypedArray(), random, ransacThreshold, maxIter, maxIter, inlierCountThreshold)
+    println("Model Points: ${modelResults.size}")
+
+    val corners = listOf(
+        Point(0.0, 0.0),
+        Point(srcImageFeatures.width.toDouble(), 0.0),
+        Point(srcImageFeatures.width.toDouble(), srcImageFeatures.height.toDouble()),
+        Point(0.0, srcImageFeatures.height.toDouble())
+    )
+    val homographyCandidates = mutableListOf<List<Point>>()
+    var mask = BooleanArray(goodMatches.size) { false }
+    println("Match count: ${goodMatches.size}")
+    println("")
+    for (modelResult in modelResults) {
+        println("Indices: ${modelResult.indices.joinToString()}")
+        println("Inliers: ${modelResult.mask.withIndex().filter { it.value }.map {it.index}.joinToString()}")
+        val masked = modelResult.indices.any { mask[it] }
+        println("Masked: $masked")
+        if (masked) {
+            continue
         }
-         */
+
+        val transformedCorners = corners.map { multiplyHomography(modelResult.homography, it) }
+        if (!checkGoodHomography(srcImageFeatures.width, srcImageFeatures.height, transformedCorners, ratioThreshold)) {
+            continue
+        }
+        println("Good homography")
+
+        homographyCandidates.add(transformedCorners)
+        mask = BooleanArray(mask.size) {
+            mask[it] or modelResult.mask[it]
+        }
     }
 
-    return goodHomographies
+    return homographyCandidates.toTypedArray()
+}
+
+fun multiplyHomography(homography: DoubleArray, point: Point): Point {
+    val h00 = homography[0]
+    val h01 = homography[1]
+    val h02 = homography[2]
+    val h10 = homography[3]
+    val h11 = homography[4]
+    val h12 = homography[5]
+    val h20 = homography[6]
+    val h21 = homography[7]
+    val h22 = homography[8]
+
+    val x = point.x
+    val y = point.y
+
+    val denominator = h20 * x + h21 * y + h22
+    val newX = (h00 * x + h01 * y + h02) / denominator
+    val newY = (h10 * x + h11 * y + h12) / denominator
+
+    return Point(newX, newY)
 }
 
 private fun findGoodMatches(
@@ -107,34 +118,32 @@ private fun findGoodMatches(
     }
 }
 
-private const val DEFAULT_RANSAC_REPROJ_THRESHOLD = 3.0
-private fun findHomographyCandidates(sourcePoints: Mat, destinationPoints: Mat, _ransacReprojThreshold: Double, maxIter: Int, confidence: Double): Array<DoubleArray> {
-    val srcCount = sourcePoints.rows()
-    val dstCount = destinationPoints.rows()
+private fun checkGoodHomography(srcWidth: Int, srcHeight: Int, transformedCorners: List<Point>, ratioThreshold: Double) : Boolean {
+    val srcWidthDouble = srcWidth.toDouble()
+    val srcHeightDouble = srcHeight.toDouble()
 
-    if (srcCount != dstCount) {
-        Log.e(TAG, "The input arrays should have the same number of point sets to calculate Homography")
-        return emptyArray()
-    } else if (srcCount < 4) {
-        Log.e(TAG, "The input arrays should have at least 4 corresponding point sets to calculate Homography")
-        return emptyArray()
+    val originalEdgeSqrLengths = arrayOf(
+        srcWidthDouble * srcWidthDouble,
+        srcHeightDouble * srcHeightDouble,
+        srcWidthDouble * srcWidthDouble,
+        srcHeightDouble * srcHeightDouble
+    )
+    val transformedEdgeSqrLengths = calculateEdgeSqrLengths(transformedCorners)
+
+    val edgeRatios = DoubleArray(transformedEdgeSqrLengths.size) { transformedEdgeSqrLengths[it] / originalEdgeSqrLengths[it] }
+    val averageEdgeRatio = edgeRatios.average()
+
+    return edgeRatios.all { abs(1 - it / averageEdgeRatio) < ratioThreshold }
+}
+
+private fun calculateEdgeSqrLengths(corners: List<Point>): DoubleArray {
+    val cornerCount = corners.size
+    return DoubleArray(cornerCount) { index ->
+        val nextIndex = (index + 1) % cornerCount
+        calculateSqrDistance(corners[index], corners[nextIndex])
     }
+}
 
-    val srcPoints = Array(srcCount) { Point() }
-    val dstPoints = Array(srcCount) { Point() }
-
-    repeat(srcCount) { i ->
-        srcPoints[i] = Point(sourcePoints.get(i, 0))
-        dstPoints[i] = Point(destinationPoints.get(i, 0))
-    }
-
-    if (srcCount == 4) {
-        return calculateHomography(srcPoints, dstPoints, srcCount)?.let { homography ->
-            arrayOf(homography)
-        } ?: emptyArray()
-    }
-
-    val ransacReprojThreshold = if (_ransacReprojThreshold > 0) _ransacReprojThreshold else DEFAULT_RANSAC_REPROJ_THRESHOLD
-
-    return emptyArray()
+private fun calculateSqrDistance(p1: Point, p2: Point): Double {
+    return (p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)
 }
