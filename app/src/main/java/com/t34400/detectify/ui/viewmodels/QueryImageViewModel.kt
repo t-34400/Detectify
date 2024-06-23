@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.t34400.detectify.R
 import com.t34400.detectify.domain.models.QueryImageFeatures
-import com.t34400.detectify.utils.detectAndCompute
+import com.t34400.detectify.utils.opencv.detectAndCompute
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.opencv.features2d.AKAZE
