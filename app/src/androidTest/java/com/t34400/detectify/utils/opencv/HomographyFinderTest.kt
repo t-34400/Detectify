@@ -28,7 +28,7 @@ class HomographyFinderTest {
             maxIter = 10_000,
             ransacThreshold = 15.0,
             inlierCountThreshold = 12,
-            ratioThreshold = 1.0,
+            edgeScaleRatioThreshold = 1.0,
         )
 
         for ((index, transformedPoints) in homographyCandidates.withIndex()) {

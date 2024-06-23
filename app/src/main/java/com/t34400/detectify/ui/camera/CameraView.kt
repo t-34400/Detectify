@@ -1,6 +1,6 @@
 package com.t34400.detectify.ui.camera
 
-import android.graphics.Matrix
+import android.graphics.PointF
 import androidx.camera.view.CameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.t34400.detectify.R
 import com.t34400.detectify.ui.viewmodels.DetectorViewModel
 import com.t34400.detectify.ui.viewmodels.QueryImageViewModel
+import org.opencv.core.Point
 
 @Composable
 fun CameraView(
@@ -56,14 +57,12 @@ fun CameraView(
 
     detectionResults.forEach { result ->
         val query = result.query
-        result.homographies.forEach { homographyMatrix ->
+        result.boundaries.forEach { boundary ->
             Canvas(modifier = Modifier.fillMaxSize()) {
-                drawHomographyOverlay(
-                    queryWidth = query.features.width,
-                    queryHeight = query.features.height,
+                drawBoundaryOverlay(
                     widthRatio = size.width / result.trainWidth,
                     heightRatio = size.height / result.trainHeight,
-                    homographyMatrix = homographyMatrix,
+                    boundary = boundary,
                     label = query.label
                 )
             }
@@ -90,28 +89,22 @@ fun CameraView(
     }
 }
 
-fun DrawScope.drawHomographyOverlay(
-    queryWidth: Int,
-    queryHeight: Int,
+fun DrawScope.drawBoundaryOverlay(
     widthRatio: Float,
     heightRatio: Float,
-    homographyMatrix: DoubleArray,
+    boundary: List<PointF>,
     label: String
 ) {
-    val srcPoints = floatArrayOf(
-        0f, 0f,
-        queryWidth.toFloat(), 0f,
-        queryWidth.toFloat(), queryHeight.toFloat(),
-        0f, queryHeight.toFloat()
-    )
-    val dstPoints = FloatArray(8)
-    // TODO homographyMatrix.apply { postScale(widthRatio, heightRatio) }.mapPoints(dstPoints, srcPoints)
+    if (boundary.size < 4) {
+        return
+    }
+    val scaledBoundary = boundary.map { PointF((it.x * widthRatio).toFloat(), (it.y * heightRatio).toFloat()) }
 
     val path = Path().apply {
-        moveTo(dstPoints[0], dstPoints[1])
-        lineTo(dstPoints[2], dstPoints[3])
-        lineTo(dstPoints[4], dstPoints[5])
-        lineTo(dstPoints[6], dstPoints[7])
+        moveTo(scaledBoundary[0].x, scaledBoundary[0].y)
+        lineTo(scaledBoundary[1].x, scaledBoundary[1].y)
+        lineTo(scaledBoundary[2].x, scaledBoundary[2].y)
+        lineTo(scaledBoundary[3].x, scaledBoundary[3].y)
         close()
     }
 
@@ -123,6 +116,6 @@ fun DrawScope.drawHomographyOverlay(
             textSize = 40f
             isAntiAlias = true
         }
-        canvas.nativeCanvas.drawText(label, dstPoints[0], dstPoints[1] - 10, paint)
+        canvas.nativeCanvas.drawText(label, scaledBoundary[0].x, scaledBoundary[0].y - 10, paint)
     }
 }

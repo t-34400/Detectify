@@ -28,10 +28,6 @@ fun calculateHomography(srcPoints: Array<Point>, dstPoints: Array<Point>, count:
         calculateL1Scale(dstPoints, dstMean, count)?.let { dstScale ->
             val invHnorm = doubleArrayOf(1.0 / dstScale.x, 0.0, dstMean.x, 0.0, 1.0 / dstScale.y, dstMean.y, 0.0, 0.0, 1.0)
             val Hnorm2 = doubleArrayOf(srcScale.x, 0.0, -srcMean.x * srcScale.x, 0.0, srcScale.y, -srcMean.y * srcScale.y, 0.0, 0.0, 1.0)
-            val invHnormMat = Mat(3, 3, CvType.CV_64F)
-            invHnormMat.put(0, 0, *invHnorm)
-            val Hnorm2Mat = Mat(3, 3, CvType.CV_64F)
-            Hnorm2Mat.put(0, 0, *Hnorm2)
 
             val LtL = Mat(9, 9, CvType.CV_64F, Scalar.all(0.0))
             val LtLArray = DoubleArray(81) { 0.0 }
@@ -58,7 +54,8 @@ fun calculateHomography(srcPoints: Array<Point>, dstPoints: Array<Point>, count:
             Core.completeSymm(LtL)
             Core.eigen(LtL, singularValues, eigenVectors)
 
-            val H0 = DoubleArray(9) { eigenVectors.get(8, it)[0] }
+            val H0 = DoubleArray(9)
+            eigenVectors.get(8, 0, H0)
 
             val Htemp = multiplyMatrix(multiplyMatrix(invHnorm, H0), Hnorm2)
 
@@ -88,21 +85,21 @@ private fun calculateMean(points: Array<Point>, count: Int): Point {
 }
 
 private fun calculateL1Scale(points: Array<Point>, mean: Point, count: Int): Point? {
-    val scale = Point()
-
+    var x = 0.0
+    var y = 0.0
     repeat(count) { i ->
-        scale.x += abs(points[i].x - mean.x)
-        scale.y += abs(points[i].y - mean.y)
+        x += abs(points[i].x - mean.x)
+        y += abs(points[i].y - mean.y)
     }
 
-    if (abs(scale.x) < Double.MIN_VALUE || abs(scale.y) < Double.MIN_VALUE) {
+    if (x < Double.MIN_VALUE || y < Double.MIN_VALUE) {
         return null
     }
 
-    scale.x = count / scale.x
-    scale.y = count / scale.y
+    x = count / x
+    y = count / y
 
-    return scale
+    return Point(x, y)
 }
 
 fun multiplyMatrix(mat1: DoubleArray, mat2: DoubleArray): DoubleArray {

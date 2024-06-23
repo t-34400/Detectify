@@ -83,24 +83,21 @@ private fun getSubset(
     random: Random
 ) : Subset? {
     val count = srcPoints.size
-    val indices = ArrayList<Int>(MODEL_POINTS)
-
-    val srcSubset = Array(MODEL_POINTS) { Point() }
-    val dstSubset = Array(MODEL_POINTS) { Point() }
 
     repeat(MAX_ATTEMPTS) { _ ->
-        indices.clear()
+        val indices = mutableListOf<Int>()
 
-        repeat (MODEL_POINTS) { i ->
+        repeat (MODEL_POINTS) { _ ->
             var index_i = random.nextInt(0, count)
             while (indices.contains(index_i)) {
                 index_i = random.nextInt(0, count)
             }
 
             indices.add(index_i)
-            srcSubset[i] = srcPoints[index_i]
-            dstSubset[i] = dstPoints[index_i]
         }
+
+        val srcSubset = Array(MODEL_POINTS) { srcPoints[indices[it]] }
+        val dstSubset = Array(MODEL_POINTS) { dstPoints[indices[it]] }
 
         if (checkSubset(srcSubset) && checkSubset(dstSubset)) {
             return Subset(srcSubset, dstSubset, indices.toIntArray())
@@ -114,13 +111,15 @@ private fun checkSubset(points: Array<Point>): Boolean {
     val count = points.size
     for (i in 2 until count) {
         for (j in 0 until i) {
-            val delta1 = Point(points[j].x - points[i].x, points[j].y - points[i].y)
-            val norm1 = delta1.x * delta1.x + delta1.y * delta1.y
+            val delta1x = points[j].x - points[i].x
+            val delta1y = points[j].y - points[i].y
+            val norm1 = delta1x * delta1x + delta1y * delta1y
 
             for (k in 0 until j) {
-                val delta2 = Point(points[k].x - points[i].x, points[k].y - points[i].y)
-                val norm = (delta2.x * delta2.x + delta2.y * delta2.y) * norm1
-                val sqrDot = delta1.x * delta2.x + delta1.y * delta2.y
+                val delta2x = points[k].x - points[i].x
+                val delta2y = points[k].y - points[i].y
+                val norm = (delta2x * delta2x + delta2y * delta2y) * norm1
+                val sqrDot = delta1x * delta2x + delta1y * delta2y
 
                 if (sqrDot * sqrDot > SQR_CHECK_SUBSET_THRESHOLD * norm) {
                     return false

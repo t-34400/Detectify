@@ -1,6 +1,6 @@
 package com.t34400.detectify.ui.viewmodels
 
-import android.graphics.Matrix
+import android.graphics.PointF
 import android.util.Log
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.CameraController
@@ -22,12 +22,13 @@ import kotlinx.coroutines.withContext
 import org.opencv.features2d.AKAZE
 import java.lang.Exception
 import java.util.concurrent.Executors
+import kotlin.math.PI
 
 data class DetectionResult(
     val query: QueryImageFeatures,
     val trainWidth: Int,
     val trainHeight: Int,
-    val homographies: List<DoubleArray>
+    val boundaries: List<List<PointF>>
 )
 
 class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() {
@@ -59,36 +60,40 @@ class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() 
             cameraController.setImageAnalysisAnalyzer(executor) { imageProxy ->
                 try {
                     val scaleFactor = 3.0
-                    val trainWidth = imageProxy.width
-                    val trainHeight = imageProxy.height
-                    val inverseScaleFactor = (1.0 / scaleFactor).toFloat()
 
                     val bitmap = imageProxy.toBitmap()
                     val trainImageFeatures = detectAndCompute(bitmap, akaze, scaleFactor)
 
-                    /*
                     viewModelScope.launch {
                         _results.value = withContext(Dispatchers.Default) {
                             queries.map { query ->
                                 async {
-                                    val matches = findAllMatchesInImage(
+                                    val matches = findHomographyCandidates(
                                         query.features,
-                                        trainImageFeatures
+                                        trainImageFeatures,
+                                        distanceRatioThreshold = 0.7,
+                                        maxIter = 2_000,
+                                        ransacThreshold = 10.0,
+                                        inlierCountThreshold = 8,
+                                        edgeLengthThreshold = 30.0,
+                                        edgeScaleRatioThreshold = 0.5,
+                                        angleThreshold = PI / 4
                                     ).map { match ->
-                                        match.apply {
-                                            postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-                                            postScale(inverseScaleFactor, inverseScaleFactor)
-                                        }
+                                        match.map { rotatePoint(it, trainImageFeatures.width, trainImageFeatures.height, imageProxy.imageInfo.rotationDegrees) }
                                     }
                                     Log.d(TAG, "Query: ${query.label}, Size: (${query.features.width}, ${query.features.height}), Matches: ${matches.count()}")
-                                    return@async DetectionResult(query, trainWidth, trainHeight, matches)
+
+                                    val (rotatedWidth, rotatedHeight) = when (imageProxy.imageInfo.rotationDegrees) {
+                                        90, 270 -> Pair(trainImageFeatures.height, trainImageFeatures.width)
+                                        else -> Pair(trainImageFeatures.width, trainImageFeatures.height)
+                                    }
+                                    return@async DetectionResult(query, rotatedWidth, rotatedHeight, matches)
                                 }
                             }.awaitAll()
                         }
 
                         imageProxy.close()
                     }
-                     */
                 } catch (e: Exception) {
                     Log.e(TAG, "Error converting ImageProxy to Bitmap.", e);
                     imageProxy.close()
@@ -113,6 +118,15 @@ class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() 
                 return DetectorViewModel(
                     queryImageViewModel
                 ) as T
+            }
+        }
+
+        fun rotatePoint(point: PointF, width: Int, height: Int, rotationDegrees: Int): PointF {
+            return when (rotationDegrees) {
+                90 -> PointF(height - point.y, point.x)
+                180 -> PointF(width - point.x, height - point.y)
+                270 -> PointF(point.y, width - point.x)
+                else -> PointF(point.x, point.y)
             }
         }
     }
