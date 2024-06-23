@@ -72,7 +72,7 @@ private fun getSubset(
     random: Random
 ) : Pair<Array<Point>, Array<Point>>? {
     val count = srcPoints.size
-    val indices = ArrayList<Int>(initialCapacity = MODEL_POINTS)
+    val indices = ArrayList<Int>(MODEL_POINTS)
 
     val srcSubset = Array(MODEL_POINTS) { Point() }
     val dstSubset = Array(MODEL_POINTS) { Point() }

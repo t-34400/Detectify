@@ -5,6 +5,18 @@
       <entry key="app">
         <State />
       </entry>
+      <entry key="testFeaturePointDetection()">
+        <State />
+      </entry>
+      <entry key="testFindingGoodMatch()">
+        <State />
+      </entry>
+      <entry key="testHomographyEstimation()">
+        <State />
+      </entry>
+      <entry key="testResourceAccess()">
+        <State />
+      </entry>
     </value>
   </component>
 </project>

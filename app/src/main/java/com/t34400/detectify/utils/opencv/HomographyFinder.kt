@@ -109,8 +109,8 @@ private fun findGoodMatches(
 
 private const val DEFAULT_RANSAC_REPROJ_THRESHOLD = 3.0
 private fun findHomographyCandidates(sourcePoints: Mat, destinationPoints: Mat, _ransacReprojThreshold: Double, maxIter: Int, confidence: Double): Array<DoubleArray> {
-    val srcCount = sourcePoints.checkVector(2, -1, false)
-    val dstCount = destinationPoints.checkVector(2, -1, false)
+    val srcCount = sourcePoints.rows()
+    val dstCount = destinationPoints.rows()
 
     if (srcCount != dstCount) {
         Log.e(TAG, "The input arrays should have the same number of point sets to calculate Homography")
