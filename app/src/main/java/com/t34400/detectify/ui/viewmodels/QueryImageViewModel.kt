@@ -2,6 +2,7 @@ package com.t34400.detectify.ui.viewmodels
 
 import android.content.res.Resources
 import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -20,7 +21,7 @@ class QueryImageViewModel(resources: Resources) : ViewModel() {
         val akaze: AKAZE = AKAZE.create()
         val image = BitmapFactory.decodeResource(resources, R.drawable.ghana)
         val imageFeatures = detectAndCompute(image, akaze, 2.0)
-        val queryImageFeatures = QueryImageFeatures("Ghana", imageFeatures)
+        val queryImageFeatures = QueryImageFeatures("Ghana", Color.Red, imageFeatures)
 
         queries = flowOf(arrayOf(queryImageFeatures))
     }

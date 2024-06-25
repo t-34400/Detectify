@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ fun CameraView(
                     widthRatio = size.width / result.trainWidth,
                     heightRatio = size.height / result.trainHeight,
                     boundary = boundary,
+                    color = query.color,
                     label = query.label
                 )
             }
@@ -93,12 +95,13 @@ fun DrawScope.drawBoundaryOverlay(
     widthRatio: Float,
     heightRatio: Float,
     boundary: List<PointF>,
+    color: Color,
     label: String
 ) {
     if (boundary.size < 4) {
         return
     }
-    val scaledBoundary = boundary.map { PointF((it.x * widthRatio).toFloat(), (it.y * heightRatio).toFloat()) }
+    val scaledBoundary = boundary.map { PointF(it.x * widthRatio, it.y * heightRatio) }
 
     val path = Path().apply {
         moveTo(scaledBoundary[0].x, scaledBoundary[0].y)
@@ -108,11 +111,11 @@ fun DrawScope.drawBoundaryOverlay(
         close()
     }
 
-    drawPath(path = path, color = Color.Red, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
+    drawPath(path = path, color = color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4f))
 
     drawIntoCanvas { canvas ->
         val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.RED
+            this.color = color.toArgb()
             textSize = 40f
             isAntiAlias = true
         }
