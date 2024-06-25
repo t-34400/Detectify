@@ -18,6 +18,7 @@ private const val TAG = "HomographyFinder"
 fun findHomographyCandidates(
     srcImageFeatures: ImageFeatures,
     dstImageFeatures: ImageFeatures,
+    distanceThreshold: Double,
     distanceRatioThreshold: Double,
     maxIter: Int,
     ransacThreshold: Double,
@@ -34,7 +35,7 @@ fun findHomographyCandidates(
 
     // To address cases where multiple regions in the training images correspond to a query image,
     // we reverse the matching process by using the training images as the query and the query images as the reference.
-    val goodMatches = findGoodMatches(dstImageFeatures.descriptors, srcImageFeatures.descriptors, distanceRatioThreshold)
+    val goodMatches = findGoodMatches(dstImageFeatures.descriptors, srcImageFeatures.descriptors, distanceThreshold, distanceRatioThreshold)
 
     val (srcMatchPointList, dstMatchPointList) =
         goodMatches
@@ -101,6 +102,7 @@ fun multiplyHomography(homography: DoubleArray, point: PointF): PointF {
 private fun findGoodMatches(
     srcDescriptors: Mat,
     dstDescriptors: Mat,
+    distanceThreshold: Double,
     distanceRatioThreshold: Double,
 ): List<DMatch> {
     val matcher = BFMatcher.create(NORM_HAMMING, false)
@@ -112,6 +114,7 @@ private fun findGoodMatches(
     for (_matches in knnMatches) {
         val matches = _matches.toArray()
         if (matches.size >= 2
+            && matches[0].distance < distanceThreshold
             && matches[0].distance < distanceRatioThreshold * matches[1].distance) {
             goodMatches.add(matches[0])
         }

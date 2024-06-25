@@ -71,6 +71,7 @@ class DetectorViewModel(queryImageViewModel: QueryImageViewModel) : ViewModel() 
                                     val matches = findHomographyCandidates(
                                         query.features,
                                         trainImageFeatures,
+                                        distanceThreshold = 75.0,
                                         distanceRatioThreshold = 0.7,
                                         maxIter = 2_000,
                                         ransacThreshold = 10.0,
